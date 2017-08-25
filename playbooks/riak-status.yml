@@ -1,0 +1,11 @@
+#COPY FIREWALL
+- hosts: humaniq
+  user: humaniq
+  become: yes
+  become_user: root
+
+  tasks:
+  - name: Riak status
+    command: make status
+    args:
+      chdir: /vhosts/docker-riak

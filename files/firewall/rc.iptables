@@ -1,0 +1,73 @@
+#!/bin/sh
+IPT="/sbin/iptables"
+IPS=`cat /etc/ips`
+DIFS=`ifconfig -a|grep br-|awk '{print $1}'`
+
+EXTIF="eth0"
+
+$IPT -F
+$IPT -F INPUT
+$IPT -F OUTPUT
+$IPT -F FORWARD
+$IPT -F -t mangle
+$IPT -F -t nat
+$IPT -X
+
+$IPT -P INPUT  ACCEPT
+$IPT -P OUTPUT ACCEPT
+$IPT -P FORWARD DROP
+
+# Allow localhost
+$IPT -A INPUT -i lo -j ACCEPT
+$IPT -A INPUT -i docker0 -j ACCEPT
+
+#RESTIRCTED
+# Full access for restricted IP's
+for DIF in $DIFS
+do
+       $IPT -A INPUT -i $DIF -j ACCEPT
+done
+
+
+# Allow established connections
+$IPT -A INPUT -m conntrack --ctstate RELATED,ESTABLISHED -j ACCEPT
+
+#WORLD WIDE
+# Allow ICMP ping
+$IPT -A INPUT -p icmp -m icmp --icmp-type 8 -j ACCEPT
+
+# SSH
+$IPT -A INPUT -p tcp -m tcp --dport 68 -j ACCEPT
+
+#MONITORING
+$IPT -A INPUT -p tcp -m tcp --dport 8443 -j ACCEPT
+$IPT -A INPUT -p tcp -m tcp --dport 8444 -j ACCEPT
+
+#RESTIRCTED 
+# Full access for restricted IP's
+for IP in $IPS
+do
+        $IPT -A INPUT -i $EXTIF -s ${IP} -j ACCEPT
+done
+
+
+# INPUT default DROP
+$IPT -A INPUT -j DROP
+
+#ACCESS TO DOCKER CONTAINERS
+$IPT -N DOCKER-USER
+$IPT -A DOCKER-USER -i eth0 -m conntrack --ctstate RELATED,ESTABLISHED -j ACCEPT
+
+#WORLDWIDE
+# http
+$IPT -A DOCKER-USER -i eth0 -p tcp -m tcp --dport 80 -j ACCEPT
+# https
+$IPT -A DOCKER-USER -i eth0 -p tcp -m tcp --dport 443 -j ACCEPT
+
+# Full access for restricted IP's
+for IP in $IPS
+do
+        $IPT -A DOCKER-USER -i $EXTIF -s ${IP} -j ACCEPT
+done
+
+$IPT -A DOCKER-USER -i eth0 -j REJECT

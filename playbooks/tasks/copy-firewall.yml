@@ -1,0 +1,22 @@
+---
+#COPY FIREWALL
+- hosts: humaniq
+  user: humaniq
+  become: yes
+  become_user: root
+
+  tasks:
+  - name: copy rc.iptables file to humaniq servers
+    copy:
+      src: ../files/firewall/rc.iptables
+      dest: /etc
+      mode: 0755
+      force: yes
+      backup: yes
+  - name: copy ip list for firewall to humaniq servers
+    copy:
+      src: ../files/firewall/ips
+      dest: /etc
+      mode: 0644
+      force: yes
+      backup: yes
